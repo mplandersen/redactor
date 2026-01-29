@@ -51,6 +51,10 @@ class MLPIIDetector {
         const { minConfidence = 0.5 } = options;
         const startTime = performance.now();
 
+        console.log(`\n🔍 Starting PII Detection`);
+        console.log(`Text length: ${text.length} chars (~${Math.round(text.length / 5)} words)`);
+        console.log(`Min confidence threshold: ${minConfidence}`);
+
         // Always run pattern detection (reliable)
         const patternEntities = this.detectPatterns(text);
         console.log('Pattern entities found:', patternEntities);
@@ -72,14 +76,37 @@ class MLPIIDetector {
                     }
 
                     // Debug: show chunk info
-                    console.log(`Chunk ${i + 1}: ${chunkText.length} chars, first 100: "${chunkText.substring(0, 100)}..."`);
+                    console.log(`\n=== Chunk ${i + 1}/${chunks.length} ===`);
+                    console.log(`Length: ${chunkText.length} chars`);
+                    console.log(`Preview: "${chunkText.substring(0, 150)}..."`);
 
                     // Get raw token predictions with positions for this chunk
                     const results = await this.nerPipeline(chunkText);
-                    console.log(`Chunk ${i + 1}/${chunks.length}: ${results.length} tokens, entities found: ${results.filter(r => r.entity !== 'O').length}`);
+
+                    // Debug: Show what the model actually returned
+                    const nonOEntities = results.filter(r => r.entity !== 'O');
+                    console.log(`Total tokens: ${results.length}, Non-O entities: ${nonOEntities.length}`);
+
+                    // Show first 10 non-O entities with details
+                    if (nonOEntities.length > 0) {
+                        console.log('Sample entity tokens:');
+                        nonOEntities.slice(0, 10).forEach(t => {
+                            console.log(`  "${t.word}" → ${t.entity} (score: ${t.score.toFixed(3)}, pos: ${t.start}-${t.end})`);
+                        });
+                    }
 
                     // Merge B-/I- tokens into complete entities
                     const chunkEntities = this.mergeTokensToEntities(results, chunkText, minConfidence);
+
+                    // Debug: show merged entities
+                    if (chunkEntities.length > 0) {
+                        console.log(`Merged entities (${chunkEntities.length}):`);
+                        chunkEntities.forEach(e => {
+                            console.log(`  "${e.text}" (${e.type}, confidence: ${e.confidence.toFixed(3)})`);
+                        });
+                    } else {
+                        console.log('No entities after merging and filtering');
+                    }
 
                     // Adjust positions to account for chunk offset in original text
                     const adjustedEntities = chunkEntities.map(e => ({
@@ -200,10 +227,19 @@ class MLPIIDetector {
         }
 
         // Filter out junk entities (single chars, punctuation, etc.)
+        const beforeFilter = entities.length;
         const cleanedEntities = entities.filter(e => {
             const text = e.text.trim();
-            return text.length > 1 && !/^[^a-zA-Z]+$/.test(text); // More than 1 char and contains letters
+            const isValid = text.length > 1 && !/^[^a-zA-Z]+$/.test(text); // More than 1 char and contains letters
+            if (!isValid) {
+                console.log(`  ❌ Filtered out: "${e.text}" (too short or no letters)`);
+            }
+            return isValid;
         });
+        const afterFilter = cleanedEntities.length;
+        if (beforeFilter !== afterFilter) {
+            console.log(`Filtered ${beforeFilter - afterFilter} junk entities, keeping ${afterFilter}`);
+        }
 
         // Now find positions for each entity in the text
         return this.findEntityPositions(cleanedEntities, text);
