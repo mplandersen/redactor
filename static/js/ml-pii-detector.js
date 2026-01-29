@@ -63,67 +63,63 @@ class MLPIIDetector {
         let mlEntities = [];
         if (this.modelLoaded && this.nerPipeline) {
             try {
-                // For long texts, process in chunks (smaller chunks = more reliable)
-                const chunks = this.chunkText(text, 150); // 150 words per chunk (safer for BERT)
-                console.log(`Processing ${chunks.length} chunks for ML detection...`);
+                // PHASE 1: Learn - Discover unique entities from all chunks
+                const chunks = this.chunkText(text, 150);
+                console.log(`\n📚 PHASE 1: Learning entities from ${chunks.length} chunks...`);
+
+                const discoveredEntities = new Map(); // text -> {type, confidence, sources}
 
                 for (let i = 0; i < chunks.length; i++) {
-                    const { text: chunkText, offset } = chunks[i];
+                    const { text: chunkText } = chunks[i];
 
-                    // Update progress in UI
                     if (window.App && window.App.updateLoadingMessage) {
-                        window.App.updateLoadingMessage(`Analyzing text... (chunk ${i + 1} of ${chunks.length})`);
+                        window.App.updateLoadingMessage(`Learning entities... (chunk ${i + 1} of ${chunks.length})`);
                     }
 
-                    // Debug: show chunk info
-                    console.log(`\n=== Chunk ${i + 1}/${chunks.length} ===`);
-                    console.log(`Length: ${chunkText.length} chars`);
-                    console.log(`Preview: "${chunkText.substring(0, 150)}..."`);
+                    console.log(`\nChunk ${i + 1}/${chunks.length}: "${chunkText.substring(0, 100)}..."`);
 
-                    // Get raw token predictions with positions for this chunk
                     const results = await this.nerPipeline(chunkText);
+                    const chunkEntities = this.mergeTokensToEntities(results, chunkText, minConfidence, false); // false = don't find positions yet
 
-                    // Debug: Show what the model actually returned
-                    const nonOEntities = results.filter(r => r.entity !== 'O');
-                    console.log(`Total tokens: ${results.length}, Non-O entities: ${nonOEntities.length}`);
+                    // Add discovered entities to our learned set
+                    chunkEntities.forEach(e => {
+                        const key = e.text.toLowerCase();
+                        if (!discoveredEntities.has(key)) {
+                            discoveredEntities.set(key, {
+                                text: e.text,
+                                type: e.type,
+                                confidence: e.confidence,
+                                foundInChunks: [i + 1]
+                            });
+                            console.log(`  ✅ Learned: "${e.text}" (${e.type})`);
+                        } else {
+                            // Already know this entity, update metadata
+                            const existing = discoveredEntities.get(key);
+                            existing.foundInChunks.push(i + 1);
+                            existing.confidence = Math.max(existing.confidence, e.confidence);
+                        }
+                    });
 
-                    // Show first 10 non-O entities with details
-                    if (nonOEntities.length > 0) {
-                        console.log('Sample entity tokens:');
-                        nonOEntities.slice(0, 10).forEach(t => {
-                            console.log(`  "${t.word}" → ${t.entity} (score: ${t.score.toFixed(3)}, pos: ${t.start}-${t.end})`);
-                        });
-                    }
-
-                    // Merge B-/I- tokens into complete entities
-                    const chunkEntities = this.mergeTokensToEntities(results, chunkText, minConfidence);
-
-                    // Debug: show merged entities
-                    if (chunkEntities.length > 0) {
-                        console.log(`Merged entities (${chunkEntities.length}):`);
-                        chunkEntities.forEach(e => {
-                            console.log(`  "${e.text}" (${e.type}, confidence: ${e.confidence.toFixed(3)})`);
-                        });
-                    } else {
-                        console.log('No entities after merging and filtering');
-                    }
-
-                    // Adjust positions to account for chunk offset in original text
-                    const adjustedEntities = chunkEntities.map(e => ({
-                        ...e,
-                        start: e.start + offset,
-                        end: e.end + offset
-                    }));
-
-                    mlEntities.push(...adjustedEntities);
-
-                    // Allow browser to breathe every 3 chunks (prevents "unresponsive" warning)
+                    // Browser breathing room
                     if (i % 3 === 0 && i > 0) {
                         await new Promise(resolve => setTimeout(resolve, 10));
                     }
                 }
 
-                console.log('Merged ML entities:', mlEntities);
+                console.log(`\n📝 Learned ${discoveredEntities.size} unique entities`);
+                discoveredEntities.forEach((meta, key) => {
+                    console.log(`  "${meta.text}" (${meta.type}) - found in chunks: ${meta.foundInChunks.join(', ')}`);
+                });
+
+                // PHASE 2: Apply - Find ALL occurrences of discovered entities in original text
+                console.log(`\n🔍 PHASE 2: Applying learned entities to entire document...`);
+                if (window.App && window.App.updateLoadingMessage) {
+                    window.App.updateLoadingMessage(`Applying entities to document...`);
+                }
+
+                mlEntities = this.findAllOccurrences(text, Array.from(discoveredEntities.values()));
+                console.log(`✅ Found ${mlEntities.length} total occurrences`);
+
             } catch (error) {
                 console.error('ML detection error:', error);
             }
@@ -175,9 +171,13 @@ class MLPIIDetector {
     }
 
     /**
-     * Merge B-/I- tagged tokens into complete entities and find their positions
+     * Merge B-/I- tagged tokens into complete entities
+     * @param {Array} tokens - Raw model output tokens
+     * @param {string} text - The chunk text
+     * @param {number} minConfidence - Minimum confidence threshold
+     * @param {boolean} findPositions - Whether to find positions in text (default: true, set false for learning phase)
      */
-    mergeTokensToEntities(tokens, text, minConfidence) {
+    mergeTokensToEntities(tokens, text, minConfidence, findPositions = true) {
         const entities = [];
         let currentEntity = null;
 
@@ -241,8 +241,12 @@ class MLPIIDetector {
             console.log(`Filtered ${beforeFilter - afterFilter} junk entities, keeping ${afterFilter}`);
         }
 
-        // Now find positions for each entity in the text
-        return this.findEntityPositions(cleanedEntities, text);
+        // Find positions if requested (skip during learning phase)
+        if (findPositions) {
+            return this.findEntityPositions(cleanedEntities, text);
+        } else {
+            return cleanedEntities; // Just return entity texts and types
+        }
     }
 
     /**
@@ -298,6 +302,46 @@ class MLPIIDetector {
             console.log('Positioned entities:', positioned.map(e => `"${e.text}" (${e.type})`));
         }
         return positioned;
+    }
+
+    /**
+     * Find ALL occurrences of learned entities in the full text
+     * This ensures consistency - if "Nigel" is found once, ALL instances are found
+     */
+    findAllOccurrences(text, learnedEntities) {
+        const allOccurrences = [];
+
+        for (const entity of learnedEntities) {
+            const searchText = entity.text;
+            let searchStart = 0;
+
+            while (searchStart < text.length) {
+                // Case-insensitive search
+                const lowerText = text.toLowerCase();
+                const lowerSearch = searchText.toLowerCase();
+                const index = lowerText.indexOf(lowerSearch, searchStart);
+
+                if (index === -1) break;
+
+                // Found an occurrence - add it
+                allOccurrences.push({
+                    text: text.substring(index, index + searchText.length), // Preserve original case
+                    type: entity.type,
+                    confidence: entity.confidence,
+                    start: index,
+                    end: index + searchText.length,
+                    source: 'ml_model'
+                });
+
+                searchStart = index + searchText.length;
+            }
+        }
+
+        // Sort by position
+        allOccurrences.sort((a, b) => a.start - b.start);
+
+        console.log(`Applied ${learnedEntities.length} learned entities, found ${allOccurrences.length} total occurrences`);
+        return allOccurrences;
     }
 
     /**
