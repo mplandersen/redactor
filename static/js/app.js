@@ -108,18 +108,35 @@ const App = {
         console.log('handleFile called with:', file.name);
         try {
             this.originalFilename = file.name;
+
+            // Show loading state
+            this.setState('LOADING');
+
+            // Update filename in loading screen
+            const filenameEl = document.getElementById('loading-filename');
+            if (filenameEl) {
+                filenameEl.textContent = file.name;
+            }
+
+            // Step 1: Read file
+            this.updateLoadingMessage('Reading file...');
             console.log('Reading file...');
             this.originalText = await this.fileHandler.readFile(file);
             console.log('File read, length:', this.originalText.length);
 
-            // Detect PII entities (returns { entities: [...], processingTime, stats })
+            // Step 2: Run ML detection
+            this.updateLoadingMessage('Running ML detection...');
             console.log('Detecting PII...');
             const result = await this.mlDetector.detectPII(this.originalText);
             console.log('Detection result:', result);
+
+            // Step 3: Process results
+            this.updateLoadingMessage('Processing results...');
             this.entities = result.entities || [];
             this.redactFlags = this.entities.map(() => true); // Default: redact all
             console.log('Entities found:', this.entities.length);
 
+            // Transition to review
             console.log('Setting state to REVIEW...');
             this.setState('REVIEW');
             console.log('State set to REVIEW');
@@ -293,7 +310,7 @@ const App = {
         this.state = state;
 
         // Hide all states
-        const states = ['upload-state', 'review-state', 'download-state'];
+        const states = ['upload-state', 'review-state', 'download-state', 'loading-overlay'];
         states.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -307,6 +324,7 @@ const App = {
         // Show current state
         const viewMap = {
             'UPLOAD': 'upload-state',
+            'LOADING': 'loading-overlay',
             'REVIEW': 'review-state',
             'DOWNLOAD': 'download-state'
         };
@@ -324,6 +342,16 @@ const App = {
         if (state === 'REVIEW') {
             console.log('Calling renderReview...');
             this.renderReview(this.originalText, this.entities);
+        }
+    },
+
+    /**
+     * Update loading message during file processing
+     */
+    updateLoadingMessage(message) {
+        const messageEl = document.getElementById('loading-message');
+        if (messageEl) {
+            messageEl.textContent = message;
         }
     },
 

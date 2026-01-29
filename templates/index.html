@@ -131,6 +131,60 @@
             to { transform: rotate(360deg); }
         }
 
+        /* LOADING OVERLAY */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            min-width: 300px;
+        }
+
+        .loading-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: #1a1a1a;
+        }
+
+        .loading-message {
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+
+        .loading-filename {
+            color: #3b82f6;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .spinner-large {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
         /* REVIEW STATE */
         .review-header {
             display: flex;
@@ -443,6 +497,16 @@
             <div class="model-status loading" id="model-status" role="status" aria-live="polite">
                 <span class="spinner" aria-hidden="true"></span>
                 <span>Loading ML model...</span>
+            </div>
+        </div>
+
+        <!-- LOADING STATE -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-card">
+                <div class="spinner-large"></div>
+                <h3>Analyzing document...</h3>
+                <p id="loading-message" class="loading-message">Reading file...</p>
+                <p id="loading-filename" class="loading-filename"></p>
             </div>
         </div>
 
