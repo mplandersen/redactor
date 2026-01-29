@@ -40,7 +40,7 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8081))
+    port = int(os.environ.get('PORT', 8082))
     debug = os.environ.get('FLASK_ENV') == 'development'
 
     app.run(

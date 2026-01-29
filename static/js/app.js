@@ -375,10 +375,22 @@ const App = {
      * Update loading stats
      */
     updateStats(chunks, entities) {
+        console.log(`📊 updateStats called: chunks=${chunks}, entities=${entities}`);
         const chunksEl = document.getElementById('chunks-processed');
         const entitiesEl = document.getElementById('entities-found');
-        if (chunksEl) chunksEl.textContent = chunks;
-        if (entitiesEl) entitiesEl.textContent = entities;
+        console.log('DOM elements found:', { chunksEl: !!chunksEl, entitiesEl: !!entitiesEl });
+        if (chunksEl) {
+            chunksEl.textContent = chunks;
+            console.log(`✅ Updated chunks display to: ${chunks}`);
+        } else {
+            console.error('❌ chunks-processed element not found!');
+        }
+        if (entitiesEl) {
+            entitiesEl.textContent = entities;
+            console.log(`✅ Updated entities display to: ${entities}`);
+        } else {
+            console.error('❌ entities-found element not found!');
+        }
     },
 
     /**
@@ -390,6 +402,9 @@ const App = {
         return div.innerHTML;
     }
 };
+
+// Expose App to window so ML detector can access it
+window.App = App;
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => App.initApp());
