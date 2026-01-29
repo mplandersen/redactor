@@ -59,12 +59,17 @@ class MLPIIDetector {
         let mlEntities = [];
         if (this.modelLoaded && this.nerPipeline) {
             try {
-                // For long texts, process in chunks
-                const chunks = this.chunkText(text, 400); // 400 words per chunk
+                // For long texts, process in chunks (smaller chunks = more reliable)
+                const chunks = this.chunkText(text, 150); // 150 words per chunk (safer for BERT)
                 console.log(`Processing ${chunks.length} chunks for ML detection...`);
 
                 for (let i = 0; i < chunks.length; i++) {
                     const { text: chunkText, offset } = chunks[i];
+
+                    // Update progress in UI
+                    if (window.App && window.App.updateLoadingMessage) {
+                        window.App.updateLoadingMessage(`Analyzing text... (chunk ${i + 1} of ${chunks.length})`);
+                    }
 
                     // Debug: show chunk info
                     console.log(`Chunk ${i + 1}: ${chunkText.length} chars, first 100: "${chunkText.substring(0, 100)}..."`);
@@ -84,6 +89,11 @@ class MLPIIDetector {
                     }));
 
                     mlEntities.push(...adjustedEntities);
+
+                    // Allow browser to breathe every 3 chunks (prevents "unresponsive" warning)
+                    if (i % 3 === 0 && i > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
                 }
 
                 console.log('Merged ML entities:', mlEntities);

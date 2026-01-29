@@ -169,10 +169,21 @@
             margin-bottom: 0.5rem;
         }
 
+        .loading-details {
+            margin-top: 1rem;
+        }
+
         .loading-filename {
             color: #3b82f6;
             font-weight: 500;
             font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .loading-progress {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            font-style: italic;
         }
 
         .spinner-large {
@@ -481,7 +492,10 @@
                 <div class="spinner-large"></div>
                 <h3>Analyzing document...</h3>
                 <p id="loading-message" class="loading-message">Reading file...</p>
-                <p id="loading-filename" class="loading-filename"></p>
+                <div class="loading-details">
+                    <p id="loading-filename" class="loading-filename"></p>
+                    <p id="loading-progress" class="loading-progress"></p>
+                </div>
             </div>
         </div>
 
