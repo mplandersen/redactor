@@ -66,9 +66,12 @@ class MLPIIDetector {
                 for (let i = 0; i < chunks.length; i++) {
                     const { text: chunkText, offset } = chunks[i];
 
+                    // Debug: show chunk info
+                    console.log(`Chunk ${i + 1}: ${chunkText.length} chars, first 100: "${chunkText.substring(0, 100)}..."`);
+
                     // Get raw token predictions with positions for this chunk
                     const results = await this.nerPipeline(chunkText);
-                    console.log(`Chunk ${i + 1}/${chunks.length}: ${results.length} tokens`);
+                    console.log(`Chunk ${i + 1}/${chunks.length}: ${results.length} tokens, entities found: ${results.filter(r => r.entity !== 'O').length}`);
 
                     // Merge B-/I- tokens into complete entities
                     const chunkEntities = this.mergeTokensToEntities(results, chunkText, minConfidence);
