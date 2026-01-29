@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PII Redactor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .privacy-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border: 1px solid #10b981;
+            border-radius: 999px;
+            margin: 0 auto 1.5rem auto;
+            max-width: fit-content;
+            font-size: 0.85rem;
+            color: #065f46;
+        }
+
+        .privacy-icon {
+            font-size: 1rem;
+        }
+
+        /* UPLOAD STATE */
+        #upload-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+        }
+
+        .drop-zone {
+            width: 100%;
+            max-width: 500px;
+            padding: 4rem 2rem;
+            border: 2px dashed #ccc;
+            border-radius: 12px;
+            background: #fff;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .drop-zone-text {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-zone-hint {
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .model-status {
+            margin-top: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .model-status.loading {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .model-status.ready {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .model-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* REVIEW STATE */
+        .review-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .filename {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .entity-count {
+            padding: 0.25rem 0.75rem;
+            background: #e5e7eb;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: #4b5563;
+        }
+
+        .review-instructions {
+            text-align: center;
+            padding: 0.75rem;
+            background: #eff6ff;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #1e40af;
+        }
+
+        .document-area {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            line-height: 1.8;
+            min-height: 200px;
+            margin-bottom: 1rem;
+        }
+
+        .pii-entity {
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.2s, background-color 0.2s;
+            position: relative;
+        }
+
+        .pii-entity:hover {
+            opacity: 0.85;
+        }
+
+        /* Entity type colors - PERSON (blue) */
+        .pii-entity[data-type="PERSON"],
+        .pii-entity[data-type="PER"] {
+            background: #dbeafe !important;
+            color: #1e40af !important;
+        }
+
+        /* ORGANIZATION (purple) */
+        .pii-entity[data-type="ORGANIZATION"],
+        .pii-entity[data-type="ORG"] {
+            background: #ede9fe !important;
+            color: #5b21b6 !important;
+        }
+
+        /* LOCATION (green) */
+        .pii-entity[data-type="LOCATION"],
+        .pii-entity[data-type="LOC"] {
+            background: #d1fae5 !important;
+            color: #065f46 !important;
+        }
+
+        /* OTHER: Email, Phone, Date (orange) */
+        .pii-entity[data-type="MISC"],
+        .pii-entity[data-type="EMAIL"],
+        .pii-entity[data-type="PHONE"],
+        .pii-entity[data-type="DATE"],
+        .pii-entity[data-type="POSTCODE"] {
+            background: #ffedd5 !important;
+            color: #9a3412 !important;
+        }
+
+        /* Redaction status: Will be redacted (red border + strikethrough) */
+        .pii-entity.redacted {
+            border: 2px solid #dc2626;
+            text-decoration: line-through;
+            text-decoration-color: #dc2626;
+        }
+
+        /* Redaction status: Will be kept (dimmed + dashed border) */
+        .pii-entity.kept {
+            opacity: 0.5;
+            border: 2px dashed #9ca3af;
+            text-decoration: none;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+
+        .legend-title {
+            width: 100%;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #4b5563;
+            margin-bottom: 0.25rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .legend-color.person { background: #dbeafe; }
+        .legend-color.organization { background: #ede9fe; }
+        .legend-color.location { background: #d1fae5; }
+        .legend-color.misc { background: #ffedd5; }
+        .legend-color.redacted { background: #fee2e2; }
+        .legend-color.kept { background: #e5e7eb; }
+
+        /* DOWNLOAD STATE */
+        .download-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .download-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-area {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        .download-options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .option-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .option-group label {
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+
+        select {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .download-actions {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        /* HIDDEN UTILITY */
+        .hidden {
+            display: none !important;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .drop-zone {
+                padding: 3rem 1.5rem;
+            }
+
+            .review-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .download-options {
+                flex-direction: column;
+            }
+
+            .download-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .download-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PII Redactor</h1>
+        <div class="privacy-badge">
+            <span class="privacy-icon">🔒</span>
+            <span>Privacy Mode: All data stays in your browser - nothing is sent to any server</span>
+        </div>
+
+        <!-- UPLOAD STATE -->
+        <div id="upload-state">
+            <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Upload file">
+                <p class="drop-zone-text">Drop .txt file here or click to browse</p>
+                <p class="drop-zone-hint">Supported format: Plain text (.txt)</p>
+            </div>
+            <input type="file" id="file-input" accept=".txt,text/plain" aria-label="File upload">
+
+            <div class="model-status loading" id="model-status" role="status" aria-live="polite">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Loading ML model...</span>
+            </div>
+        </div>
+
+        <!-- REVIEW STATE -->
+        <div id="review-state" class="hidden">
+            <div class="review-header">
+                <div class="file-info">
+                    <span class="filename" id="review-filename">document.txt</span>
+                    <span class="entity-count" id="entity-count">0 entities found</span>
+                </div>
+                <button class="btn btn-primary" id="proceed-download-btn">Download</button>
+            </div>
+
+            <div class="review-instructions">
+                Click on highlighted text to toggle redaction. Red = will be redacted, Gray = will be kept.
+            </div>
+
+            <div class="document-area" id="document-content" role="document" aria-label="Document with detected PII">
+                <!-- Document text with PII spans inserted here -->
+            </div>
+
+            <div class="legend" aria-label="Entity type legend">
+                <span class="legend-title">Entity Types:</span>
+                <div class="legend-item">
+                    <span class="legend-color person" aria-hidden="true"></span>
+                    <span>Person</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color organization" aria-hidden="true"></span>
+                    <span>Organization</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color location" aria-hidden="true"></span>
+                    <span>Location</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color misc" aria-hidden="true"></span>
+                    <span>Other (Email, Phone, Date)</span>
+                </div>
+                <span class="legend-title" style="margin-top: 0.5rem;">Redaction Status:</span>
+                <div class="legend-item">
+                    <span class="legend-color redacted" aria-hidden="true"></span>
+                    <span>Will be redacted</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color kept" aria-hidden="true"></span>
+                    <span>Will be kept</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- DOWNLOAD STATE -->
+        <div id="download-state" class="hidden">
+            <div class="download-header">
+                <h2>Redacted Document</h2>
+                <p>Preview your redacted document below</p>
+            </div>
+
+            <div class="preview-area" id="preview-content" aria-label="Redacted document preview">
+                <!-- Redacted text preview -->
+            </div>
+
+            <div class="download-options">
+                <div class="option-group">
+                    <label for="redaction-style">Redaction style:</label>
+                    <select id="redaction-style" aria-label="Select redaction style">
+                        <option value="[REDACTED]">[REDACTED]</option>
+                        <option value="[TYPE]">[TYPE] (e.g., [PERSON])</option>
+                        <option value="blocks">████████</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="download-actions">
+                <button class="btn btn-secondary" id="start-over-btn">Start Over</button>
+                <button class="btn btn-primary" id="download-btn">Download File</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        // Import Transformers.js and initialize the app
+        import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
+
+        // Configure to use remote models from Hugging Face Hub
+        env.allowLocalModels = false;
+        env.useBrowserCache = true;
+
+        // Make pipeline available globally for our detector
+        window.TransformersJS = { pipeline, env };
+
+        // Signal that Transformers.js is ready
+        window.dispatchEvent(new Event('transformers-ready'));
+    </script>
+    <script src="{{ url_for('static', filename='js/ml-pii-detector.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/file-handler.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
