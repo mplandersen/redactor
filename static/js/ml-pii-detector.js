@@ -226,15 +226,43 @@ class MLPIIDetector {
             entities.push(currentEntity);
         }
 
-        // Filter out junk entities (single chars, punctuation, etc.)
+        // Filter out junk entities (abbreviations, common words, etc.)
         const beforeFilter = entities.length;
         const cleanedEntities = entities.filter(e => {
             const text = e.text.trim();
-            const isValid = text.length > 1 && !/^[^a-zA-Z]+$/.test(text); // More than 1 char and contains letters
-            if (!isValid) {
+            const lower = text.toLowerCase();
+
+            // Basic checks: must have length > 1 and contain letters
+            if (text.length < 2 || !/[a-zA-Z]/.test(text)) {
                 console.log(`  ❌ Filtered out: "${e.text}" (too short or no letters)`);
+                return false;
             }
-            return isValid;
+
+            // Reject common filler words
+            const fillers = ['yeah', 'okay', 'ok', 'mhmm', 'hmm', 'uh', 'um', 'oh', 'ah'];
+            if (fillers.includes(lower)) {
+                console.log(`  ❌ Filtered out: "${e.text}" (filler word)`);
+                return false;
+            }
+
+            // Reject very short entities (2-3 chars) unless they look like proper names
+            // Proper names: capitalized and marked as PERSON
+            if (text.length <= 3) {
+                const isProperName = e.type === 'PERSON' && /^[A-Z][a-z]*$/.test(text);
+                if (!isProperName) {
+                    console.log(`  ❌ Filtered out: "${e.text}" (too short, not a proper name)`);
+                    return false;
+                }
+            }
+
+            // Reject common words that aren't PII
+            const commonWords = ['english', 'teams', 'met', 'team', 'group', 'call', 'meeting'];
+            if (commonWords.includes(lower)) {
+                console.log(`  ❌ Filtered out: "${e.text}" (common word)`);
+                return false;
+            }
+
+            return true;
         });
         const afterFilter = cleanedEntities.length;
         if (beforeFilter !== afterFilter) {
