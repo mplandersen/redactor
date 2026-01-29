@@ -72,8 +72,18 @@ class MLPIIDetector {
                 for (let i = 0; i < chunks.length; i++) {
                     const { text: chunkText } = chunks[i];
 
-                    if (window.App && window.App.updateLoadingMessage) {
-                        window.App.updateLoadingMessage(`Learning entities... (chunk ${i + 1} of ${chunks.length})`);
+                    // Update progress (15% to 80% during learning phase)
+                    const progress = 15 + (65 * (i + 1) / chunks.length);
+                    if (window.App) {
+                        if (window.App.updateLoadingMessage) {
+                            window.App.updateLoadingMessage(`Learning entities... (chunk ${i + 1} of ${chunks.length})`);
+                        }
+                        if (window.App.updateProgress) {
+                            window.App.updateProgress(progress);
+                        }
+                        if (window.App.updateStats) {
+                            window.App.updateStats(i + 1, discoveredEntities.size);
+                        }
                     }
 
                     console.log(`\nChunk ${i + 1}/${chunks.length}: "${chunkText.substring(0, 100)}..."`);
@@ -113,12 +123,27 @@ class MLPIIDetector {
 
                 // PHASE 2: Apply - Find ALL occurrences of discovered entities in original text
                 console.log(`\n🔍 PHASE 2: Applying learned entities to entire document...`);
-                if (window.App && window.App.updateLoadingMessage) {
-                    window.App.updateLoadingMessage(`Applying entities to document...`);
+                if (window.App) {
+                    if (window.App.updateLoadingMessage) {
+                        window.App.updateLoadingMessage(`Applying entities to document...`);
+                    }
+                    if (window.App.updateProgress) {
+                        window.App.updateProgress(85);
+                    }
                 }
 
                 mlEntities = this.findAllOccurrences(text, Array.from(discoveredEntities.values()));
                 console.log(`✅ Found ${mlEntities.length} total occurrences`);
+
+                // Update final stats
+                if (window.App) {
+                    if (window.App.updateProgress) {
+                        window.App.updateProgress(95);
+                    }
+                    if (window.App.updateStats) {
+                        window.App.updateStats(chunks.length, mlEntities.length);
+                    }
+                }
 
             } catch (error) {
                 console.error('ML detection error:', error);

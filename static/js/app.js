@@ -112,6 +112,10 @@ const App = {
             // Show loading state
             this.setState('LOADING');
 
+            // Reset progress UI
+            this.updateProgress(0);
+            this.updateStats(0, 0);
+
             // Update filename in loading screen
             const filenameEl = document.getElementById('loading-filename');
             if (filenameEl) {
@@ -120,6 +124,7 @@ const App = {
 
             // Step 1: Read file
             this.updateLoadingMessage('Reading file...');
+            this.updateProgress(10);
             console.log('Reading file...');
             this.originalText = await this.fileHandler.readFile(file);
             console.log('File read, length:', this.originalText.length);
@@ -132,6 +137,7 @@ const App = {
 
             // Step 3: Process results
             this.updateLoadingMessage('Processing results...');
+            this.updateProgress(100);
             this.entities = result.entities || [];
             this.redactFlags = this.entities.map(() => true); // Default: redact all
             console.log('Entities found:', this.entities.length);
@@ -353,6 +359,26 @@ const App = {
         if (messageEl) {
             messageEl.textContent = message;
         }
+    },
+
+    /**
+     * Update loading progress bar (0-100)
+     */
+    updateProgress(percent) {
+        const progressBar = document.getElementById('progress-bar');
+        if (progressBar) {
+            progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+        }
+    },
+
+    /**
+     * Update loading stats
+     */
+    updateStats(chunks, entities) {
+        const chunksEl = document.getElementById('chunks-processed');
+        const entitiesEl = document.getElementById('entities-found');
+        if (chunksEl) chunksEl.textContent = chunks;
+        if (entitiesEl) entitiesEl.textContent = entities;
     },
 
     /**
