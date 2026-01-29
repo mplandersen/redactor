@@ -199,8 +199,14 @@ class MLPIIDetector {
             entities.push(currentEntity);
         }
 
+        // Filter out junk entities (single chars, punctuation, etc.)
+        const cleanedEntities = entities.filter(e => {
+            const text = e.text.trim();
+            return text.length > 1 && !/^[^a-zA-Z]+$/.test(text); // More than 1 char and contains letters
+        });
+
         // Now find positions for each entity in the text
-        return this.findEntityPositions(entities, text);
+        return this.findEntityPositions(cleanedEntities, text);
     }
 
     /**
@@ -251,7 +257,10 @@ class MLPIIDetector {
             }
         }
 
-        console.log('Positioned entities:', positioned.map(e => `"${e.text}" at [${e.start}-${e.end}]`));
+        // Only log if we found actual entities
+        if (positioned.length > 0) {
+            console.log('Positioned entities:', positioned.map(e => `"${e.text}" (${e.type})`));
+        }
         return positioned;
     }
 
