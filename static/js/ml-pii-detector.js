@@ -72,20 +72,6 @@ class MLPIIDetector {
                 for (let i = 0; i < chunks.length; i++) {
                     const { text: chunkText } = chunks[i];
 
-                    // Update progress (15% to 80% during learning phase)
-                    const progress = 15 + (65 * (i + 1) / chunks.length);
-                    if (window.App) {
-                        if (window.App.updateLoadingMessage) {
-                            window.App.updateLoadingMessage(`Learning entities... (chunk ${i + 1} of ${chunks.length})`);
-                        }
-                        if (window.App.updateProgress) {
-                            window.App.updateProgress(progress);
-                        }
-                        if (window.App.updateStats) {
-                            window.App.updateStats(i + 1, discoveredEntities.size);
-                        }
-                    }
-
                     console.log(`\nChunk ${i + 1}/${chunks.length}: "${chunkText.substring(0, 100)}..."`);
 
                     const results = await this.nerPipeline(chunkText);
@@ -110,10 +96,22 @@ class MLPIIDetector {
                         }
                     });
 
-                    // Browser breathing room
-                    if (i % 3 === 0 && i > 0) {
-                        await new Promise(resolve => setTimeout(resolve, 10));
+                    // Update progress AFTER processing chunk (so stats are current)
+                    const progress = 15 + (65 * (i + 1) / chunks.length);
+                    if (window.App) {
+                        if (window.App.updateLoadingMessage) {
+                            window.App.updateLoadingMessage(`Learning entities... (chunk ${i + 1} of ${chunks.length})`);
+                        }
+                        if (window.App.updateProgress) {
+                            window.App.updateProgress(progress);
+                        }
+                        if (window.App.updateStats) {
+                            window.App.updateStats(i + 1, discoveredEntities.size);
+                        }
                     }
+
+                    // Browser breathing room - give UI time to update
+                    await new Promise(resolve => setTimeout(resolve, 0));
                 }
 
                 console.log(`\n📝 Learned ${discoveredEntities.size} unique entities`);
