@@ -59,19 +59,29 @@ class MLPIIDetector {
         let mlEntities = [];
         if (this.modelLoaded && this.nerPipeline) {
             try {
-                // Get raw token predictions with positions
-                const results = await this.nerPipeline(text);
+                // For long texts, process in chunks
+                const chunks = this.chunkText(text, 400); // 400 words per chunk
+                console.log(`Processing ${chunks.length} chunks for ML detection...`);
 
-                console.log('Raw NER results:', results);
+                for (let i = 0; i < chunks.length; i++) {
+                    const { text: chunkText, offset } = chunks[i];
 
-                // Debug: show first few results with positions
-                console.log('Sample entities with positions:');
-                results.slice(0, 5).forEach(r => {
-                    console.log(`  "${r.word}" at [${r.start}-${r.end}], type: ${r.entity}, score: ${r.score.toFixed(3)}`);
-                });
+                    // Get raw token predictions with positions for this chunk
+                    const results = await this.nerPipeline(chunkText);
+                    console.log(`Chunk ${i + 1}/${chunks.length}: ${results.length} tokens`);
 
-                // Merge B-/I- tokens into complete entities
-                mlEntities = this.mergeTokensToEntities(results, text, minConfidence);
+                    // Merge B-/I- tokens into complete entities
+                    const chunkEntities = this.mergeTokensToEntities(results, chunkText, minConfidence);
+
+                    // Adjust positions to account for chunk offset in original text
+                    const adjustedEntities = chunkEntities.map(e => ({
+                        ...e,
+                        start: e.start + offset,
+                        end: e.end + offset
+                    }));
+
+                    mlEntities.push(...adjustedEntities);
+                }
 
                 console.log('Merged ML entities:', mlEntities);
             } catch (error) {
@@ -95,6 +105,33 @@ class MLPIIDetector {
                 byType: this.groupByType(entities)
             }
         };
+    }
+
+    /**
+     * Split long text into chunks for processing
+     * BERT models have ~512 token limit (roughly 400 words safe)
+     */
+    chunkText(text, wordsPerChunk = 400) {
+        const words = text.split(/\s+/);
+        const chunks = [];
+
+        for (let i = 0; i < words.length; i += wordsPerChunk) {
+            const chunkWords = words.slice(i, i + wordsPerChunk);
+            const chunkText = chunkWords.join(' ');
+
+            // Calculate character offset in original text
+            const previousWords = words.slice(0, i);
+            const offset = previousWords.join(' ').length + (i > 0 ? 1 : 0); // +1 for space
+
+            chunks.push({
+                text: chunkText,
+                offset: offset,
+                wordStart: i,
+                wordEnd: i + chunkWords.length
+            });
+        }
+
+        return chunks;
     }
 
     /**
