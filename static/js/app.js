@@ -360,6 +360,7 @@ const App = {
         if (state === 'REVIEW') {
             console.log('Calling renderReview...');
             this.renderReview(this.originalText, this.entities);
+            this.renderSidebar();
         }
     },
 
@@ -418,6 +419,124 @@ const App = {
                 sidebar.classList.add('hidden');
             }
         }
+    },
+
+    /**
+     * Get unique entities grouped by text
+     * Returns array of {text, type, count, indices, allRedacted, someRedacted}
+     */
+    getUniqueEntities() {
+        const uniqueMap = new Map();
+
+        this.entities.forEach((entity, index) => {
+            const key = entity.text.toLowerCase();
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, {
+                    text: entity.text,
+                    type: entity.type,
+                    count: 0,
+                    indices: [],
+                    allRedacted: true,
+                    someRedacted: false
+                });
+            }
+
+            const unique = uniqueMap.get(key);
+            unique.count++;
+            unique.indices.push(index);
+
+            // Track redaction state
+            if (!this.redactFlags[index]) {
+                unique.allRedacted = false;
+            }
+            if (this.redactFlags[index]) {
+                unique.someRedacted = true;
+            }
+        });
+
+        // Convert to array and sort alphabetically
+        return Array.from(uniqueMap.values())
+            .sort((a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' }));
+    },
+
+    /**
+     * Render entity sidebar
+     */
+    renderSidebar() {
+        const uniqueEntities = this.getUniqueEntities();
+        const entityList = document.getElementById('entity-list');
+        const entityCountEl = document.getElementById('entity-list-count');
+
+        if (!entityList) return;
+
+        // Update count
+        if (entityCountEl) {
+            entityCountEl.textContent = `${uniqueEntities.length} ${uniqueEntities.length === 1 ? 'Entity' : 'Entities'} (A-Z)`;
+        }
+
+        // Filter by search query if present
+        const filtered = this.searchQuery ?
+            uniqueEntities.filter(e =>
+                e.text.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                e.type.toLowerCase().includes(this.searchQuery.toLowerCase())
+            ) : uniqueEntities;
+
+        // Render entity items
+        entityList.innerHTML = filtered.map(entity => this.renderEntityItem(entity)).join('');
+    },
+
+    /**
+     * Render a single entity item
+     */
+    renderEntityItem(entity) {
+        const redactedClass = entity.allRedacted ? 'redacted' : 'kept';
+        const checked = entity.allRedacted ? 'checked' : '';
+
+        return `
+            <div class="entity-item ${redactedClass}" data-entity-text="${this.escapeHtml(entity.text)}">
+                <div class="entity-header">
+                    <input type="checkbox"
+                           class="entity-checkbox"
+                           ${checked}
+                           onchange="App.toggleAllInstances('${this.escapeHtml(entity.text)}')"
+                           aria-label="Toggle all instances of ${this.escapeHtml(entity.text)}">
+                    <span class="entity-text">${this.escapeHtml(entity.text)}</span>
+                </div>
+                <div class="entity-meta">
+                    <span class="entity-type-badge">${entity.type}</span>
+                    <span class="entity-count-text">${entity.count} ${entity.count === 1 ? 'instance' : 'instances'}</span>
+                </div>
+                <div class="entity-actions">
+                    <button class="btn-edit" onclick="App.editEntity('${this.escapeHtml(entity.text)}')">Edit</button>
+                    <button class="btn-toggle-all" onclick="App.toggleAllInstances('${this.escapeHtml(entity.text)}')">All On/Off</button>
+                    <button class="btn-delete" onclick="App.deleteEntity('${this.escapeHtml(entity.text)}')">✕</button>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Placeholder: Toggle all instances of an entity
+     */
+    toggleAllInstances(entityText) {
+        console.log('toggleAllInstances called for:', entityText);
+        // Will implement in Phase 3
+    },
+
+    /**
+     * Placeholder: Edit entity text
+     */
+    editEntity(entityText) {
+        console.log('editEntity called for:', entityText);
+        // Will implement in Phase 4
+    },
+
+    /**
+     * Placeholder: Delete entity
+     */
+    deleteEntity(entityText) {
+        console.log('deleteEntity called for:', entityText);
+        // Will implement in Phase 5
     },
 
     /**
