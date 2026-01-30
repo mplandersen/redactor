@@ -516,11 +516,43 @@ const App = {
     },
 
     /**
-     * Placeholder: Toggle all instances of an entity
+     * Toggle all instances of an entity
      */
     toggleAllInstances(entityText) {
         console.log('toggleAllInstances called for:', entityText);
-        // Will implement in Phase 3
+
+        // Find all indices where entity.text matches (case-insensitive)
+        const indices = [];
+        this.entities.forEach((entity, index) => {
+            if (entity.text.toLowerCase() === entityText.toLowerCase()) {
+                indices.push(index);
+            }
+        });
+
+        if (indices.length === 0) {
+            console.warn('No entities found with text:', entityText);
+            return;
+        }
+
+        // Determine current state
+        const allRedacted = indices.every(i => this.redactFlags[i] === true);
+        const allKept = indices.every(i => this.redactFlags[i] === false);
+
+        // Toggle logic:
+        // - If all redacted: set all to kept (false)
+        // - If all kept or mixed: set all to redacted (true)
+        const newValue = allRedacted ? false : true;
+
+        // Update redactFlags
+        indices.forEach(i => {
+            this.redactFlags[i] = newValue;
+        });
+
+        console.log(`Toggled ${indices.length} instances of "${entityText}" to ${newValue ? 'redacted' : 'kept'}`);
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
     },
 
     /**
