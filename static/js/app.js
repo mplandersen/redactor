@@ -491,7 +491,33 @@ const App = {
     renderEntityItem(entity) {
         const redactedClass = entity.allRedacted ? 'redacted' : 'kept';
         const checked = entity.allRedacted ? 'checked' : '';
+        const isEditing = this.editingEntityText && this.editingEntityText.toLowerCase() === entity.text.toLowerCase();
 
+        if (isEditing) {
+            // Edit mode
+            return `
+                <div class="entity-item ${redactedClass}" data-entity-text="${this.escapeHtml(entity.text)}">
+                    <div class="entity-header">
+                        <input type="checkbox" ${checked} disabled>
+                        <input type="text"
+                               class="entity-text-input"
+                               id="edit-entity-input"
+                               value="${this.escapeHtml(entity.text)}"
+                               aria-label="Edit entity text">
+                        <span class="entity-type-badge">${entity.type}</span>
+                    </div>
+                    <div class="entity-meta">
+                        <span class="entity-count-text">${entity.count} ${entity.count === 1 ? 'instance' : 'instances'}</span>
+                    </div>
+                    <div class="entity-actions">
+                        <button class="btn-save" onclick="App.saveEntityEdit()">✓ Save</button>
+                        <button class="btn-cancel" onclick="App.cancelEntityEdit()">✕ Cancel</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Normal mode
         return `
             <div class="entity-item ${redactedClass}" data-entity-text="${this.escapeHtml(entity.text)}">
                 <div class="entity-header">
@@ -556,11 +582,81 @@ const App = {
     },
 
     /**
-     * Placeholder: Edit entity text
+     * Enter edit mode for an entity
      */
     editEntity(entityText) {
         console.log('editEntity called for:', entityText);
-        // Will implement in Phase 4
+        this.editingEntityText = entityText;
+        this.editingOriginalText = entityText;
+        this.renderSidebar();
+
+        // Focus the input after render
+        setTimeout(() => {
+            const input = document.getElementById('edit-entity-input');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 0);
+    },
+
+    /**
+     * Save entity edit
+     */
+    saveEntityEdit() {
+        const input = document.getElementById('edit-entity-input');
+        if (!input) return;
+
+        const newText = input.value.trim();
+        const oldText = this.editingOriginalText;
+
+        // Validation
+        if (!newText) {
+            alert('Entity text cannot be empty');
+            return;
+        }
+
+        if (newText.toLowerCase() === oldText.toLowerCase()) {
+            // No change, just cancel
+            this.cancelEntityEdit();
+            return;
+        }
+
+        // Check for duplicate
+        const duplicate = this.entities.find(e =>
+            e.text.toLowerCase() === newText.toLowerCase() &&
+            e.text.toLowerCase() !== oldText.toLowerCase()
+        );
+        if (duplicate) {
+            alert(`Entity "${newText}" already exists`);
+            return;
+        }
+
+        // Update all entities with matching text
+        this.entities.forEach(entity => {
+            if (entity.text.toLowerCase() === oldText.toLowerCase()) {
+                entity.text = newText;
+            }
+        });
+
+        console.log(`Updated entity from "${oldText}" to "${newText}"`);
+
+        // Clear editing state
+        this.editingEntityText = null;
+        this.editingOriginalText = '';
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
+    },
+
+    /**
+     * Cancel entity edit
+     */
+    cancelEntityEdit() {
+        this.editingEntityText = null;
+        this.editingOriginalText = '';
+        this.renderSidebar();
     },
 
     /**
