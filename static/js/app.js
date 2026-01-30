@@ -111,6 +111,24 @@ const App = {
         if (toggleSidebarBtn) {
             toggleSidebarBtn.addEventListener('click', () => this.toggleSidebar());
         }
+
+        // Add entity button
+        const addEntityBtn = document.getElementById('add-entity-btn');
+        if (addEntityBtn) {
+            addEntityBtn.addEventListener('click', () => this.showAddEntityForm());
+        }
+
+        // Save new entity button
+        const saveNewEntityBtn = document.getElementById('save-new-entity-btn');
+        if (saveNewEntityBtn) {
+            saveNewEntityBtn.addEventListener('click', () => this.addNewEntity());
+        }
+
+        // Cancel new entity button
+        const cancelNewEntityBtn = document.getElementById('cancel-new-entity-btn');
+        if (cancelNewEntityBtn) {
+            cancelNewEntityBtn.addEventListener('click', () => this.hideAddEntityForm());
+        }
     },
 
     /**
@@ -703,6 +721,146 @@ const App = {
         // Re-render document and sidebar
         this.renderReview(this.originalText, this.entities);
         this.renderSidebar();
+    },
+
+    /**
+     * Show add entity form
+     */
+    showAddEntityForm() {
+        const form = document.getElementById('add-entity-form');
+        const message = document.getElementById('add-entity-message');
+        if (form) {
+            form.classList.remove('hidden');
+            // Clear previous input
+            const textInput = document.getElementById('new-entity-text');
+            if (textInput) {
+                textInput.value = '';
+                textInput.focus();
+            }
+            const typeSelect = document.getElementById('new-entity-type');
+            if (typeSelect) {
+                typeSelect.value = 'PERSON';
+            }
+            if (message) {
+                message.classList.add('hidden');
+            }
+        }
+    },
+
+    /**
+     * Hide add entity form
+     */
+    hideAddEntityForm() {
+        const form = document.getElementById('add-entity-form');
+        if (form) {
+            form.classList.add('hidden');
+        }
+    },
+
+    /**
+     * Add new entity manually
+     */
+    addNewEntity() {
+        const textInput = document.getElementById('new-entity-text');
+        const typeSelect = document.getElementById('new-entity-type');
+        const messageEl = document.getElementById('add-entity-message');
+
+        if (!textInput || !typeSelect) return;
+
+        const text = textInput.value.trim();
+        const type = typeSelect.value;
+
+        // Clear previous message
+        if (messageEl) {
+            messageEl.classList.add('hidden');
+        }
+
+        // Validation
+        if (!text) {
+            this.showAddEntityMessage('Entity text cannot be empty', 'error');
+            return;
+        }
+
+        // Check for duplicate
+        const duplicate = this.entities.find(e =>
+            e.text.toLowerCase() === text.toLowerCase()
+        );
+        if (duplicate) {
+            this.showAddEntityMessage(`Entity "${text}" already exists`, 'error');
+            return;
+        }
+
+        // Search for all occurrences in original text (case-insensitive)
+        const occurrences = this.findAllOccurrences(text);
+
+        if (occurrences.length === 0) {
+            this.showAddEntityMessage(`No instances of "${text}" found in document`, 'error');
+            return;
+        }
+
+        // Add all occurrences as entities
+        occurrences.forEach(occurrence => {
+            this.entities.push({
+                text: occurrence.text,
+                type: type,
+                start: occurrence.start,
+                end: occurrence.end,
+                confidence: 1.0,
+                source: 'manual'
+            });
+            this.redactFlags.push(true); // Default: redact
+        });
+
+        console.log(`Added ${occurrences.length} instances of "${text}" (${type})`);
+
+        // Show success message
+        this.showAddEntityMessage(`Added "${text}" - ${occurrences.length} ${occurrences.length === 1 ? 'instance' : 'instances'} found`, 'success');
+
+        // Clear form and hide after short delay
+        setTimeout(() => {
+            this.hideAddEntityForm();
+        }, 1500);
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
+    },
+
+    /**
+     * Show message in add entity form
+     */
+    showAddEntityMessage(message, type) {
+        const messageEl = document.getElementById('add-entity-message');
+        if (messageEl) {
+            messageEl.textContent = message;
+            messageEl.className = `form-message ${type}`;
+            messageEl.classList.remove('hidden');
+        }
+    },
+
+    /**
+     * Find all occurrences of text in original document
+     */
+    findAllOccurrences(searchText) {
+        const occurrences = [];
+        const lowerText = this.originalText.toLowerCase();
+        const lowerSearch = searchText.toLowerCase();
+        let searchStart = 0;
+
+        while (searchStart < this.originalText.length) {
+            const index = lowerText.indexOf(lowerSearch, searchStart);
+            if (index === -1) break;
+
+            occurrences.push({
+                text: this.originalText.substring(index, index + searchText.length),
+                start: index,
+                end: index + searchText.length
+            });
+
+            searchStart = index + searchText.length;
+        }
+
+        return occurrences;
     },
 
     /**
