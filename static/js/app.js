@@ -15,6 +15,12 @@ const App = {
     entities: [],
     redactFlags: [], // true = will redact, false = keep
 
+    // Sidebar state
+    sidebarOpen: true,
+    searchQuery: '',
+    editingEntityText: null,
+    editingOriginalText: '',
+
     /**
      * Initialize the application
      */
@@ -98,6 +104,12 @@ const App = {
         // Start over button
         if (startOverBtn) {
             startOverBtn.addEventListener('click', () => this.setState('UPLOAD'));
+        }
+
+        // Sidebar toggle button
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        if (toggleSidebarBtn) {
+            toggleSidebarBtn.addEventListener('click', () => this.toggleSidebar());
         }
     },
 
@@ -390,6 +402,21 @@ const App = {
             console.log(`✅ Updated entities display to: ${entities}`);
         } else {
             console.error('❌ entities-found element not found!');
+        }
+    },
+
+    /**
+     * Toggle sidebar visibility
+     */
+    toggleSidebar() {
+        this.sidebarOpen = !this.sidebarOpen;
+        const sidebar = document.getElementById('entity-sidebar');
+        if (sidebar) {
+            if (this.sidebarOpen) {
+                sidebar.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('hidden');
+            }
         }
     },
 
