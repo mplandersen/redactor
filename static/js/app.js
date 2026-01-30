@@ -660,11 +660,49 @@ const App = {
     },
 
     /**
-     * Placeholder: Delete entity
+     * Delete entity (remove all instances)
      */
     deleteEntity(entityText) {
         console.log('deleteEntity called for:', entityText);
-        // Will implement in Phase 5
+
+        // Count instances
+        const count = this.entities.filter(e =>
+            e.text.toLowerCase() === entityText.toLowerCase()
+        ).length;
+
+        if (count === 0) {
+            console.warn('No entities found with text:', entityText);
+            return;
+        }
+
+        // Confirm deletion
+        const confirmed = confirm(
+            `Remove "${entityText}" from the list?\n\n` +
+            `• ${count} ${count === 1 ? 'instance' : 'instances'} will be un-highlighted\n` +
+            `• You can add it back later`
+        );
+
+        if (!confirmed) return;
+
+        // Filter out entities with matching text
+        const indicesToRemove = [];
+        this.entities.forEach((entity, index) => {
+            if (entity.text.toLowerCase() === entityText.toLowerCase()) {
+                indicesToRemove.push(index);
+            }
+        });
+
+        // Remove in reverse order to maintain correct indices
+        indicesToRemove.reverse().forEach(index => {
+            this.entities.splice(index, 1);
+            this.redactFlags.splice(index, 1);
+        });
+
+        console.log(`Deleted ${indicesToRemove.length} instances of "${entityText}"`);
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
     },
 
     /**
