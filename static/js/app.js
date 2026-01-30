@@ -129,6 +129,15 @@ const App = {
         if (cancelNewEntityBtn) {
             cancelNewEntityBtn.addEventListener('click', () => this.hideAddEntityForm());
         }
+
+        // Search/filter entities
+        const searchInput = document.getElementById('entity-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.trim();
+                this.renderSidebar();
+            });
+        }
     },
 
     /**
