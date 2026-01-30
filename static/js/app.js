@@ -138,6 +138,29 @@ const App = {
                 this.renderSidebar();
             });
         }
+
+        // Keyboard shortcuts for add entity form
+        const newEntityTextInput = document.getElementById('new-entity-text');
+        if (newEntityTextInput) {
+            newEntityTextInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addNewEntity();
+                } else if (e.key === 'Escape') {
+                    this.hideAddEntityForm();
+                }
+            });
+        }
+
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Escape key to cancel editing
+            if (e.key === 'Escape') {
+                if (this.editingEntityText) {
+                    this.cancelEntityEdit();
+                }
+            }
+        });
     },
 
     /**
@@ -508,8 +531,24 @@ const App = {
                 e.type.toLowerCase().includes(this.searchQuery.toLowerCase())
             ) : uniqueEntities;
 
-        // Render entity items
-        entityList.innerHTML = filtered.map(entity => this.renderEntityItem(entity)).join('');
+        // Render entity items or empty state
+        if (filtered.length === 0 && this.searchQuery) {
+            entityList.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: #6b7280;">
+                    <p style="margin: 0; font-size: 2rem;">🔍</p>
+                    <p style="margin: 0.5rem 0 0 0;">No entities match "${this.escapeHtml(this.searchQuery)}"</p>
+                </div>
+            `;
+        } else if (filtered.length === 0) {
+            entityList.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: #6b7280;">
+                    <p style="margin: 0; font-size: 2rem;">✨</p>
+                    <p style="margin: 0.5rem 0 0 0;">No entities detected</p>
+                </div>
+            `;
+        } else {
+            entityList.innerHTML = filtered.map(entity => this.renderEntityItem(entity)).join('');
+        }
     },
 
     /**
@@ -617,12 +656,22 @@ const App = {
         this.editingOriginalText = entityText;
         this.renderSidebar();
 
-        // Focus the input after render
+        // Focus the input after render and add keyboard shortcuts
         setTimeout(() => {
             const input = document.getElementById('edit-entity-input');
             if (input) {
                 input.focus();
                 input.select();
+
+                // Add keyboard shortcuts for edit mode
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.saveEntityEdit();
+                    } else if (e.key === 'Escape') {
+                        this.cancelEntityEdit();
+                    }
+                });
             }
         }, 0);
     },
