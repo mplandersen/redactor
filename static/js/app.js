@@ -709,9 +709,22 @@ const App = {
         }
 
         // Update all entities with matching text
+        // Need to recalculate start/end positions based on actual text in document
         this.entities.forEach(entity => {
             if (entity.text.toLowerCase() === oldText.toLowerCase()) {
-                entity.text = newText;
+                // Find the actual text at this position in the original document
+                const actualText = this.originalText.substring(entity.start, entity.start + newText.length);
+
+                // Check if the new text matches what's actually in the document at this position
+                if (actualText.toLowerCase() === newText.toLowerCase()) {
+                    // Update text and end position
+                    entity.text = actualText; // Use actual casing from document
+                    entity.end = entity.start + newText.length;
+                } else {
+                    // New text doesn't match - this shouldn't happen in normal editing
+                    // but handle it gracefully by keeping the entity as-is
+                    console.warn(`Could not match "${newText}" at position ${entity.start}`);
+                }
             }
         });
 
