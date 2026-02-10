@@ -377,6 +377,279 @@
             border: 2px dashed #9ca3af;
         }
 
+        /* Review content layout with sidebar */
+        .review-content {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .document-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Entity sidebar */
+        .entity-sidebar {
+            width: 350px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            align-self: stretch;
+        }
+
+        .entity-sidebar.hidden {
+            display: none;
+        }
+
+        /* Sidebar header */
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .sidebar-header h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.1rem;
+            color: #1a1a1a;
+        }
+
+        /* Entity search */
+        .entity-search {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .entity-search:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        /* Add entity form */
+        .add-entity-form {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .add-entity-form h4 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1rem;
+            color: #1a1a1a;
+        }
+
+        .add-entity-form label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #4b5563;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .form-actions button {
+            flex: 1;
+        }
+
+        .form-message {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .form-message.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .form-message.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Entity list header */
+        .entity-list-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        /* Entity list */
+        .entity-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        /* Entity item */
+        .entity-item {
+            padding: 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .entity-item:hover {
+            background: #f9fafb;
+        }
+
+        .entity-item.redacted {
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        .entity-item.kept {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+        }
+
+        /* Entity header */
+        .entity-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .entity-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .entity-text {
+            font-weight: 600;
+            color: #1a1a1a;
+            font-size: 1rem;
+            flex: 1;
+        }
+
+        .entity-text-input {
+            flex: 1;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #3b82f6;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .entity-text-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Entity meta */
+        .entity-meta {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .entity-type-badge {
+            padding: 0.15rem 0.5rem;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .entity-count-text {
+            color: #6b7280;
+        }
+
+        /* Entity actions */
+        .entity-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .entity-actions button {
+            flex: 1;
+            padding: 0.35rem 0.5rem;
+            font-size: 0.85rem;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #374151;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .entity-actions button:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+        }
+
+        .entity-actions .btn-edit:hover {
+            background: #dbeafe;
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+
+        .entity-actions .btn-delete:hover {
+            background: #fee2e2;
+            border-color: #dc2626;
+            color: #991b1b;
+        }
+
+        .entity-actions .btn-save {
+            background: #3b82f6;
+            color: #fff;
+            border-color: #3b82f6;
+        }
+
+        .entity-actions .btn-save:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
         /* DOWNLOAD STATE */
         .download-header {
             text-align: center;
@@ -578,25 +851,76 @@
                     <span class="filename" id="review-filename">document.txt</span>
                     <span class="entity-count" id="entity-count">0 entities found</span>
                 </div>
-                <button class="btn btn-primary" id="proceed-download-btn">Download</button>
+                <div class="review-actions">
+                    <button class="btn btn-secondary" id="toggle-sidebar-btn">☰ Entities</button>
+                    <button class="btn btn-primary" id="proceed-download-btn">Download</button>
+                </div>
             </div>
 
             <div class="review-instructions">
                 Click on highlighted text to toggle redaction. Red = will be redacted, Gray = will be kept.
             </div>
 
-            <div class="document-area" id="document-content" role="document" aria-label="Document with detected PII">
-                <!-- Document text with PII spans inserted here -->
-            </div>
+            <div class="review-content">
+                <!-- Document area (left) -->
+                <div class="document-container">
+                    <div class="document-area" id="document-content" role="document" aria-label="Document with detected PII">
+                        <!-- Document text with PII spans inserted here -->
+                    </div>
 
-            <div class="legend" aria-label="Redaction status legend">
-                <div class="legend-item">
-                    <span class="legend-color redacted" aria-hidden="true"></span>
-                    <span>Will be redacted (Red)</span>
+                    <div class="legend" aria-label="Redaction status legend">
+                        <div class="legend-item">
+                            <span class="legend-color redacted" aria-hidden="true"></span>
+                            <span>Will be redacted (Red)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color kept" aria-hidden="true"></span>
+                            <span>Will be kept (Gray)</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="legend-item">
-                    <span class="legend-color kept" aria-hidden="true"></span>
-                    <span>Will be kept (Gray)</span>
+
+                <!-- Entity sidebar (right) -->
+                <div id="entity-sidebar" class="entity-sidebar">
+                    <!-- Sidebar header -->
+                    <div class="sidebar-header">
+                        <h3>📝 Entity Manager</h3>
+                        <input type="text" id="entity-search" class="entity-search" placeholder="🔍 Search entities..." aria-label="Search entities">
+                        <button id="add-entity-btn" class="btn btn-primary btn-block">➕ Add Entity</button>
+                    </div>
+
+                    <!-- Add entity form (hidden by default) -->
+                    <div id="add-entity-form" class="add-entity-form hidden">
+                        <h4>➕ Add New Entity</h4>
+                        <label for="new-entity-text">Entity text:</label>
+                        <input type="text" id="new-entity-text" class="form-input" placeholder="e.g., John" aria-label="Entity text">
+                        <label for="new-entity-type">Entity type:</label>
+                        <select id="new-entity-type" class="form-select" aria-label="Entity type">
+                            <option value="PERSON">PERSON</option>
+                            <option value="ORGANIZATION">ORGANIZATION</option>
+                            <option value="LOCATION">LOCATION</option>
+                            <option value="MISC">MISC</option>
+                            <option value="EMAIL">EMAIL</option>
+                            <option value="PHONE">PHONE</option>
+                            <option value="DATE">DATE</option>
+                            <option value="POSTCODE">POSTCODE</option>
+                        </select>
+                        <div class="form-actions">
+                            <button id="save-new-entity-btn" class="btn btn-primary">✓ Add Entity</button>
+                            <button id="cancel-new-entity-btn" class="btn btn-secondary">✕ Cancel</button>
+                        </div>
+                        <div id="add-entity-message" class="form-message hidden"></div>
+                    </div>
+
+                    <!-- Entity list header -->
+                    <div class="entity-list-header">
+                        <span id="entity-list-count">0 Entities</span>
+                    </div>
+
+                    <!-- Entity list -->
+                    <div id="entity-list" class="entity-list">
+                        <!-- Entity items rendered here dynamically -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -645,8 +969,8 @@
         // Signal that Transformers.js is ready
         window.dispatchEvent(new Event('transformers-ready'));
     </script>
-    <script src="{{ url_for('static', filename='js/ml-pii-detector.js') }}?v=20260129-4"></script>
-    <script src="{{ url_for('static', filename='js/file-handler.js') }}?v=20260129-4"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=20260129-4"></script>
+    <script src="{{ url_for('static', filename='js/ml-pii-detector.js') }}?v=20260129-5"></script>
+    <script src="{{ url_for('static', filename='js/file-handler.js') }}?v=20260129-5"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=20260129-5"></script>
 </body>
 </html>

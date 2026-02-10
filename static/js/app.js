@@ -15,6 +15,12 @@ const App = {
     entities: [],
     redactFlags: [], // true = will redact, false = keep
 
+    // Sidebar state
+    sidebarOpen: true,
+    searchQuery: '',
+    editingEntityText: null,
+    editingOriginalText: '',
+
     /**
      * Initialize the application
      */
@@ -99,6 +105,62 @@ const App = {
         if (startOverBtn) {
             startOverBtn.addEventListener('click', () => this.setState('UPLOAD'));
         }
+
+        // Sidebar toggle button
+        const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
+        if (toggleSidebarBtn) {
+            toggleSidebarBtn.addEventListener('click', () => this.toggleSidebar());
+        }
+
+        // Add entity button
+        const addEntityBtn = document.getElementById('add-entity-btn');
+        if (addEntityBtn) {
+            addEntityBtn.addEventListener('click', () => this.showAddEntityForm());
+        }
+
+        // Save new entity button
+        const saveNewEntityBtn = document.getElementById('save-new-entity-btn');
+        if (saveNewEntityBtn) {
+            saveNewEntityBtn.addEventListener('click', () => this.addNewEntity());
+        }
+
+        // Cancel new entity button
+        const cancelNewEntityBtn = document.getElementById('cancel-new-entity-btn');
+        if (cancelNewEntityBtn) {
+            cancelNewEntityBtn.addEventListener('click', () => this.hideAddEntityForm());
+        }
+
+        // Search/filter entities
+        const searchInput = document.getElementById('entity-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.trim();
+                this.renderSidebar();
+            });
+        }
+
+        // Keyboard shortcuts for add entity form
+        const newEntityTextInput = document.getElementById('new-entity-text');
+        if (newEntityTextInput) {
+            newEntityTextInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.addNewEntity();
+                } else if (e.key === 'Escape') {
+                    this.hideAddEntityForm();
+                }
+            });
+        }
+
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Escape key to cancel editing
+            if (e.key === 'Escape') {
+                if (this.editingEntityText) {
+                    this.cancelEntityEdit();
+                }
+            }
+        });
     },
 
     /**
@@ -348,6 +410,7 @@ const App = {
         if (state === 'REVIEW') {
             console.log('Calling renderReview...');
             this.renderReview(this.originalText, this.entities);
+            this.renderSidebar();
         }
     },
 
@@ -391,6 +454,484 @@ const App = {
         } else {
             console.error('❌ entities-found element not found!');
         }
+    },
+
+    /**
+     * Toggle sidebar visibility
+     */
+    toggleSidebar() {
+        this.sidebarOpen = !this.sidebarOpen;
+        const sidebar = document.getElementById('entity-sidebar');
+        if (sidebar) {
+            if (this.sidebarOpen) {
+                sidebar.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('hidden');
+            }
+        }
+    },
+
+    /**
+     * Get unique entities grouped by text
+     * Returns array of {text, type, count, indices, allRedacted, someRedacted}
+     */
+    getUniqueEntities() {
+        const uniqueMap = new Map();
+
+        this.entities.forEach((entity, index) => {
+            const key = entity.text.toLowerCase();
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, {
+                    text: entity.text,
+                    type: entity.type,
+                    count: 0,
+                    indices: [],
+                    allRedacted: true,
+                    someRedacted: false
+                });
+            }
+
+            const unique = uniqueMap.get(key);
+            unique.count++;
+            unique.indices.push(index);
+
+            // Track redaction state
+            if (!this.redactFlags[index]) {
+                unique.allRedacted = false;
+            }
+            if (this.redactFlags[index]) {
+                unique.someRedacted = true;
+            }
+        });
+
+        // Convert to array and sort alphabetically
+        return Array.from(uniqueMap.values())
+            .sort((a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' }));
+    },
+
+    /**
+     * Render entity sidebar
+     */
+    renderSidebar() {
+        const uniqueEntities = this.getUniqueEntities();
+        const entityList = document.getElementById('entity-list');
+        const entityCountEl = document.getElementById('entity-list-count');
+
+        if (!entityList) return;
+
+        // Update count
+        if (entityCountEl) {
+            entityCountEl.textContent = `${uniqueEntities.length} ${uniqueEntities.length === 1 ? 'Entity' : 'Entities'} (A-Z)`;
+        }
+
+        // Filter by search query if present
+        const filtered = this.searchQuery ?
+            uniqueEntities.filter(e =>
+                e.text.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                e.type.toLowerCase().includes(this.searchQuery.toLowerCase())
+            ) : uniqueEntities;
+
+        // Render entity items or empty state
+        if (filtered.length === 0 && this.searchQuery) {
+            entityList.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: #6b7280;">
+                    <p style="margin: 0; font-size: 2rem;">🔍</p>
+                    <p style="margin: 0.5rem 0 0 0;">No entities match "${this.escapeHtml(this.searchQuery)}"</p>
+                </div>
+            `;
+        } else if (filtered.length === 0) {
+            entityList.innerHTML = `
+                <div style="padding: 2rem; text-align: center; color: #6b7280;">
+                    <p style="margin: 0; font-size: 2rem;">✨</p>
+                    <p style="margin: 0.5rem 0 0 0;">No entities detected</p>
+                </div>
+            `;
+        } else {
+            entityList.innerHTML = filtered.map(entity => this.renderEntityItem(entity)).join('');
+        }
+    },
+
+    /**
+     * Render a single entity item
+     */
+    renderEntityItem(entity) {
+        const redactedClass = entity.allRedacted ? 'redacted' : 'kept';
+        const checked = entity.allRedacted ? 'checked' : '';
+        const isEditing = this.editingEntityText && this.editingEntityText.toLowerCase() === entity.text.toLowerCase();
+
+        if (isEditing) {
+            // Edit mode
+            return `
+                <div class="entity-item ${redactedClass}" data-entity-text="${this.escapeHtml(entity.text)}">
+                    <div class="entity-header">
+                        <input type="checkbox" ${checked} disabled>
+                        <input type="text"
+                               class="entity-text-input"
+                               id="edit-entity-input"
+                               value="${this.escapeHtml(entity.text)}"
+                               aria-label="Edit entity text">
+                        <span class="entity-type-badge">${entity.type}</span>
+                    </div>
+                    <div class="entity-meta">
+                        <span class="entity-count-text">${entity.count} ${entity.count === 1 ? 'instance' : 'instances'}</span>
+                    </div>
+                    <div class="entity-actions">
+                        <button class="btn-save" onclick="App.saveEntityEdit()">✓ Save</button>
+                        <button class="btn-cancel" onclick="App.cancelEntityEdit()">✕ Cancel</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Normal mode
+        return `
+            <div class="entity-item ${redactedClass}" data-entity-text="${this.escapeHtml(entity.text)}">
+                <div class="entity-header">
+                    <input type="checkbox"
+                           class="entity-checkbox"
+                           ${checked}
+                           onchange="App.toggleAllInstances('${this.escapeHtml(entity.text)}')"
+                           aria-label="Toggle all instances of ${this.escapeHtml(entity.text)}">
+                    <span class="entity-text">${this.escapeHtml(entity.text)}</span>
+                </div>
+                <div class="entity-meta">
+                    <span class="entity-type-badge">${entity.type}</span>
+                    <span class="entity-count-text">${entity.count} ${entity.count === 1 ? 'instance' : 'instances'}</span>
+                </div>
+                <div class="entity-actions">
+                    <button class="btn-edit" onclick="App.editEntity('${this.escapeHtml(entity.text)}')">Edit</button>
+                    <button class="btn-toggle-all" onclick="App.toggleAllInstances('${this.escapeHtml(entity.text)}')">All On/Off</button>
+                    <button class="btn-delete" onclick="App.deleteEntity('${this.escapeHtml(entity.text)}')">✕</button>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
+     * Toggle all instances of an entity
+     */
+    toggleAllInstances(entityText) {
+        console.log('toggleAllInstances called for:', entityText);
+
+        // Find all indices where entity.text matches (case-insensitive)
+        const indices = [];
+        this.entities.forEach((entity, index) => {
+            if (entity.text.toLowerCase() === entityText.toLowerCase()) {
+                indices.push(index);
+            }
+        });
+
+        if (indices.length === 0) {
+            console.warn('No entities found with text:', entityText);
+            return;
+        }
+
+        // Determine current state
+        const allRedacted = indices.every(i => this.redactFlags[i] === true);
+        const allKept = indices.every(i => this.redactFlags[i] === false);
+
+        // Toggle logic:
+        // - If all redacted: set all to kept (false)
+        // - If all kept or mixed: set all to redacted (true)
+        const newValue = allRedacted ? false : true;
+
+        // Update redactFlags
+        indices.forEach(i => {
+            this.redactFlags[i] = newValue;
+        });
+
+        console.log(`Toggled ${indices.length} instances of "${entityText}" to ${newValue ? 'redacted' : 'kept'}`);
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
+    },
+
+    /**
+     * Enter edit mode for an entity
+     */
+    editEntity(entityText) {
+        console.log('editEntity called for:', entityText);
+        this.editingEntityText = entityText;
+        this.editingOriginalText = entityText;
+        this.renderSidebar();
+
+        // Focus the input after render and add keyboard shortcuts
+        setTimeout(() => {
+            const input = document.getElementById('edit-entity-input');
+            if (input) {
+                input.focus();
+                input.select();
+
+                // Add keyboard shortcuts for edit mode
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.saveEntityEdit();
+                    } else if (e.key === 'Escape') {
+                        this.cancelEntityEdit();
+                    }
+                });
+            }
+        }, 0);
+    },
+
+    /**
+     * Save entity edit
+     */
+    saveEntityEdit() {
+        const input = document.getElementById('edit-entity-input');
+        if (!input) return;
+
+        const newText = input.value.trim();
+        const oldText = this.editingOriginalText;
+
+        // Validation
+        if (!newText) {
+            alert('Entity text cannot be empty');
+            return;
+        }
+
+        if (newText.toLowerCase() === oldText.toLowerCase()) {
+            // No change, just cancel
+            this.cancelEntityEdit();
+            return;
+        }
+
+        // Check for duplicate
+        const duplicate = this.entities.find(e =>
+            e.text.toLowerCase() === newText.toLowerCase() &&
+            e.text.toLowerCase() !== oldText.toLowerCase()
+        );
+        if (duplicate) {
+            alert(`Entity "${newText}" already exists`);
+            return;
+        }
+
+        // Update all entities with matching text
+        // Need to recalculate start/end positions based on actual text in document
+        this.entities.forEach(entity => {
+            if (entity.text.toLowerCase() === oldText.toLowerCase()) {
+                // Find the actual text at this position in the original document
+                const actualText = this.originalText.substring(entity.start, entity.start + newText.length);
+
+                // Check if the new text matches what's actually in the document at this position
+                if (actualText.toLowerCase() === newText.toLowerCase()) {
+                    // Update text and end position
+                    entity.text = actualText; // Use actual casing from document
+                    entity.end = entity.start + newText.length;
+                } else {
+                    // New text doesn't match - this shouldn't happen in normal editing
+                    // but handle it gracefully by keeping the entity as-is
+                    console.warn(`Could not match "${newText}" at position ${entity.start}`);
+                }
+            }
+        });
+
+        console.log(`Updated entity from "${oldText}" to "${newText}"`);
+
+        // Clear editing state
+        this.editingEntityText = null;
+        this.editingOriginalText = '';
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
+    },
+
+    /**
+     * Cancel entity edit
+     */
+    cancelEntityEdit() {
+        this.editingEntityText = null;
+        this.editingOriginalText = '';
+        this.renderSidebar();
+    },
+
+    /**
+     * Delete entity (remove all instances)
+     */
+    deleteEntity(entityText) {
+        console.log('deleteEntity called for:', entityText);
+
+        // Count instances
+        const count = this.entities.filter(e =>
+            e.text.toLowerCase() === entityText.toLowerCase()
+        ).length;
+
+        if (count === 0) {
+            console.warn('No entities found with text:', entityText);
+            return;
+        }
+
+        // Confirm deletion
+        const confirmed = confirm(
+            `Remove "${entityText}" from the list?\n\n` +
+            `• ${count} ${count === 1 ? 'instance' : 'instances'} will be un-highlighted\n` +
+            `• You can add it back later`
+        );
+
+        if (!confirmed) return;
+
+        // Filter out entities with matching text
+        const indicesToRemove = [];
+        this.entities.forEach((entity, index) => {
+            if (entity.text.toLowerCase() === entityText.toLowerCase()) {
+                indicesToRemove.push(index);
+            }
+        });
+
+        // Remove in reverse order to maintain correct indices
+        indicesToRemove.reverse().forEach(index => {
+            this.entities.splice(index, 1);
+            this.redactFlags.splice(index, 1);
+        });
+
+        console.log(`Deleted ${indicesToRemove.length} instances of "${entityText}"`);
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
+    },
+
+    /**
+     * Show add entity form
+     */
+    showAddEntityForm() {
+        const form = document.getElementById('add-entity-form');
+        const message = document.getElementById('add-entity-message');
+        if (form) {
+            form.classList.remove('hidden');
+            // Clear previous input
+            const textInput = document.getElementById('new-entity-text');
+            if (textInput) {
+                textInput.value = '';
+                textInput.focus();
+            }
+            const typeSelect = document.getElementById('new-entity-type');
+            if (typeSelect) {
+                typeSelect.value = 'PERSON';
+            }
+            if (message) {
+                message.classList.add('hidden');
+            }
+        }
+    },
+
+    /**
+     * Hide add entity form
+     */
+    hideAddEntityForm() {
+        const form = document.getElementById('add-entity-form');
+        if (form) {
+            form.classList.add('hidden');
+        }
+    },
+
+    /**
+     * Add new entity manually
+     */
+    addNewEntity() {
+        const textInput = document.getElementById('new-entity-text');
+        const typeSelect = document.getElementById('new-entity-type');
+        const messageEl = document.getElementById('add-entity-message');
+
+        if (!textInput || !typeSelect) return;
+
+        const text = textInput.value.trim();
+        const type = typeSelect.value;
+
+        // Clear previous message
+        if (messageEl) {
+            messageEl.classList.add('hidden');
+        }
+
+        // Validation
+        if (!text) {
+            this.showAddEntityMessage('Entity text cannot be empty', 'error');
+            return;
+        }
+
+        // Check for duplicate
+        const duplicate = this.entities.find(e =>
+            e.text.toLowerCase() === text.toLowerCase()
+        );
+        if (duplicate) {
+            this.showAddEntityMessage(`Entity "${text}" already exists`, 'error');
+            return;
+        }
+
+        // Search for all occurrences in original text (case-insensitive)
+        const occurrences = this.findAllOccurrences(text);
+
+        if (occurrences.length === 0) {
+            this.showAddEntityMessage(`No instances of "${text}" found in document`, 'error');
+            return;
+        }
+
+        // Add all occurrences as entities
+        occurrences.forEach(occurrence => {
+            this.entities.push({
+                text: occurrence.text,
+                type: type,
+                start: occurrence.start,
+                end: occurrence.end,
+                confidence: 1.0,
+                source: 'manual'
+            });
+            this.redactFlags.push(true); // Default: redact
+        });
+
+        console.log(`Added ${occurrences.length} instances of "${text}" (${type})`);
+
+        // Show success message
+        this.showAddEntityMessage(`Added "${text}" - ${occurrences.length} ${occurrences.length === 1 ? 'instance' : 'instances'} found`, 'success');
+
+        // Clear form and hide after short delay
+        setTimeout(() => {
+            this.hideAddEntityForm();
+        }, 1500);
+
+        // Re-render document and sidebar
+        this.renderReview(this.originalText, this.entities);
+        this.renderSidebar();
+    },
+
+    /**
+     * Show message in add entity form
+     */
+    showAddEntityMessage(message, type) {
+        const messageEl = document.getElementById('add-entity-message');
+        if (messageEl) {
+            messageEl.textContent = message;
+            messageEl.className = `form-message ${type}`;
+            messageEl.classList.remove('hidden');
+        }
+    },
+
+    /**
+     * Find all occurrences of text in original document
+     */
+    findAllOccurrences(searchText) {
+        const occurrences = [];
+        const lowerText = this.originalText.toLowerCase();
+        const lowerSearch = searchText.toLowerCase();
+        let searchStart = 0;
+
+        while (searchStart < this.originalText.length) {
+            const index = lowerText.indexOf(lowerSearch, searchStart);
+            if (index === -1) break;
+
+            occurrences.push({
+                text: this.originalText.substring(index, index + searchText.length),
+                start: index,
+                end: index + searchText.length
+            });
+
+            searchStart = index + searchText.length;
+        }
+
+        return occurrences;
     },
 
     /**
